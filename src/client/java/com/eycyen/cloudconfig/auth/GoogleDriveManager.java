@@ -26,19 +26,7 @@ public class GoogleDriveManager {
     private static final String TOKENS_DIRECTORY_PATH = "config/cloudconfig/tokens";
     private static final String APPLICATION_NAME = "Cloud Config Syncer";
 
-    public boolean hasToken() {
-        File tokenDir = new File(TOKENS_DIRECTORY_PATH);
-        if (tokenDir.exists() && tokenDir.isDirectory()) {
-            File[] files = tokenDir.listFiles();
-            return files != null && files.length > 0;
-        }
-        return false;
-    }
-
     public Drive getDriveService(boolean allowBrowser) {
-        if (!allowBrowser && !hasToken()) {
-            return null;
-        }
         try {
             final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
@@ -54,17 +42,23 @@ public class GoogleDriveManager {
                     .setAccessType("offline")
                     .build();
 
-            LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
-            
-            com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp.Browser browser = url -> {
-                try {
-                    net.minecraft.util.Util.getPlatform().openUri(new java.net.URI(url));
-                } catch (Exception e) {
-                    e.printStackTrace();
+            Credential credential;
+            if (allowBrowser) {
+                LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
+                com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp.Browser browser = url -> {
+                    try {
+                        net.minecraft.util.Util.getPlatform().openUri(new java.net.URI(url));
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                };
+                credential = new AuthorizationCodeInstalledApp(flow, receiver, browser).authorize("user");
+            } else {
+                credential = flow.loadCredential("user");
+                if (credential == null) {
+                    return null;
                 }
-            };
-
-            Credential credential = new AuthorizationCodeInstalledApp(flow, receiver, browser).authorize("user");
+            }
 
             return new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
                     .setApplicationName(APPLICATION_NAME)
