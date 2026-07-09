@@ -1,5 +1,7 @@
 package com.eycyen.cloudconfig.sync;
 
+import com.google.api.client.googleapis.media.MediaHttpDownloaderProgressListener;
+import com.google.api.client.googleapis.media.MediaHttpUploaderProgressListener;
 import com.google.api.client.http.FileContent;
 import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.model.File;
@@ -8,6 +10,9 @@ import com.google.api.services.drive.model.FileList;
 import java.io.*;
 import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.Consumer;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -38,12 +43,51 @@ public class ConfigSyncer {
         return null;
     }
 
-    private void zipDirectory(Path sourceDir, Path zipFile) throws IOException {
+    private int countFiles(Path sourceDir) throws IOException {
+        AtomicInteger count = new AtomicInteger(0);
+        Files.walkFileTree(sourceDir, new SimpleFileVisitor<Path>() {
+            @Override
+            public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
+                String rel = sourceDir.relativize(file).toString();
+                if (!rel.contains(".cloudconfig-temp") && !rel.startsWith("cloudconfig")) {
+                    count.incrementAndGet();
+                }
+                return FileVisitResult.CONTINUE;
+            }
+
+            @Override
+            public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
+                String rel = sourceDir.relativize(dir).toString();
+                if (rel.startsWith("cloudconfig")) {
+                    return FileVisitResult.SKIP_SUBTREE;
+                }
+                return FileVisitResult.CONTINUE;
+            }
+        });
+        return count.get();
+    }
+
+    private String buildProgressBar(double fraction) {
+        int barLength = 20;
+        int filled = (int) (fraction * barLength);
+        StringBuilder bar = new StringBuilder("\u00a7a");
+        for (int i = 0; i < filled; i++) bar.append("|");
+        bar.append("\u00a77");
+        for (int i = filled; i < barLength; i++) bar.append("|");
+        bar.append(" \u00a7f").append((int) (fraction * 100)).append("%");
+        return bar.toString();
+    }
+
+    private void zipDirectory(Path sourceDir, Path zipFile, Consumer<String> progress) throws IOException {
+        int totalFiles = countFiles(sourceDir);
+        AtomicInteger processed = new AtomicInteger(0);
+
+        if (progress != null) progress.accept("\u00a7e[CloudConfig] Compressing config... " + buildProgressBar(0));
+
         try (ZipOutputStream zos = new ZipOutputStream(new FileOutputStream(zipFile.toFile()))) {
             Files.walkFileTree(sourceDir, new SimpleFileVisitor<Path>() {
                 @Override
                 public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-                    // Skip the temp zip file itself and cloudconfig token directory
                     String relativePath = sourceDir.relativize(file).toString();
                     if (relativePath.contains(".cloudconfig-temp") || relativePath.startsWith("cloudconfig")) {
                         return FileVisitResult.CONTINUE;
@@ -54,6 +98,11 @@ public class ConfigSyncer {
                         zos.closeEntry();
                     } catch (IOException e) {
                         // Skip locked files (common on Windows when mods hold file locks)
+                    }
+                    int done = processed.incrementAndGet();
+                    if (progress != null && (done % 10 == 0 || done == totalFiles)) {
+                        double fraction = totalFiles > 0 ? (double) done / totalFiles : 1.0;
+                        progress.accept("\u00a7e[CloudConfig] Compressing config... " + buildProgressBar(fraction));
                     }
                     return FileVisitResult.CONTINUE;
                 }
@@ -74,7 +123,19 @@ public class ConfigSyncer {
         }
     }
 
-    private void unzipToDirectory(Path zipFile, Path targetDir) throws IOException {
+    private void unzipToDirectory(Path zipFile, Path targetDir, Consumer<String> progress) throws IOException {
+        // First pass: count entries
+        int totalEntries = 0;
+        try (ZipInputStream countStream = new ZipInputStream(new FileInputStream(zipFile.toFile()))) {
+            while (countStream.getNextEntry() != null) {
+                totalEntries++;
+                countStream.closeEntry();
+            }
+        }
+
+        if (progress != null) progress.accept("\u00a7e[CloudConfig] Extracting config... " + buildProgressBar(0));
+
+        int processed = 0;
         try (ZipInputStream zis = new ZipInputStream(new FileInputStream(zipFile.toFile()))) {
             ZipEntry entry;
             while ((entry = zis.getNextEntry()) != null) {
@@ -98,17 +159,23 @@ public class ConfigSyncer {
                     }
                 }
                 zis.closeEntry();
+
+                processed++;
+                if (progress != null && (processed % 10 == 0 || processed == totalEntries)) {
+                    double fraction = totalEntries > 0 ? (double) processed / totalEntries : 1.0;
+                    progress.accept("\u00a7e[CloudConfig] Extracting config... " + buildProgressBar(fraction));
+                }
             }
         }
     }
 
-    public void upload() throws Exception {
+    public void upload(Consumer<String> progress) throws Exception {
         if (!Files.exists(configDir) || !Files.isDirectory(configDir)) {
             throw new RuntimeException("Config directory not found: " + configDir.toAbsolutePath());
         }
 
         // Zip the entire config directory
-        zipDirectory(configDir, tempZipFile);
+        zipDirectory(configDir, tempZipFile, progress);
 
         try {
             String fileId = getFileId();
@@ -116,21 +183,38 @@ public class ConfigSyncer {
             fileMetadata.setName(driveFileName);
 
             FileContent mediaContent = new FileContent("application/zip", tempZipFile.toFile());
+            long fileSize = tempZipFile.toFile().length();
+            String fileSizeMB = String.format("%.1f MB", fileSize / (1024.0 * 1024.0));
+
+            if (progress != null) progress.accept("\u00a7e[CloudConfig] Uploading " + fileSizeMB + "... " + buildProgressBar(0));
 
             if (fileId == null) {
-                driveService.files().create(fileMetadata, mediaContent)
-                        .setFields("id")
-                        .execute();
+                var request = driveService.files().create(fileMetadata, mediaContent).setFields("id");
+                request.getMediaHttpUploader().setChunkSize(2 * 1024 * 1024); // 2MB chunks
+                request.getMediaHttpUploader().setProgressListener(uploader -> {
+                    if (progress != null) {
+                        double fraction = uploader.getProgress();
+                        progress.accept("\u00a7e[CloudConfig] Uploading " + fileSizeMB + "... " + buildProgressBar(fraction));
+                    }
+                });
+                request.execute();
             } else {
-                driveService.files().update(fileId, fileMetadata, mediaContent).execute();
+                var request = driveService.files().update(fileId, fileMetadata, mediaContent);
+                request.getMediaHttpUploader().setChunkSize(2 * 1024 * 1024);
+                request.getMediaHttpUploader().setProgressListener(uploader -> {
+                    if (progress != null) {
+                        double fraction = uploader.getProgress();
+                        progress.accept("\u00a7e[CloudConfig] Uploading " + fileSizeMB + "... " + buildProgressBar(fraction));
+                    }
+                });
+                request.execute();
             }
         } finally {
-            // Clean up temp file
             Files.deleteIfExists(tempZipFile);
         }
     }
 
-    public void download() throws Exception {
+    public void download(Consumer<String> progress) throws Exception {
         String fileId = getFileId();
 
         if (fileId == null) {
@@ -138,16 +222,30 @@ public class ConfigSyncer {
         }
 
         try {
+            // Get file size for progress
+            File driveFile = driveService.files().get(fileId).setFields("size").execute();
+            long fileSize = driveFile.getSize() != null ? driveFile.getSize() : 0;
+            String fileSizeMB = String.format("%.1f MB", fileSize / (1024.0 * 1024.0));
+
+            if (progress != null) progress.accept("\u00a7e[CloudConfig] Downloading " + fileSizeMB + "... " + buildProgressBar(0));
+
             // Download zip to temp file
+            var request = driveService.files().get(fileId);
+            request.getMediaHttpDownloader().setChunkSize(2 * 1024 * 1024);
+            request.getMediaHttpDownloader().setProgressListener(downloader -> {
+                if (progress != null) {
+                    double fraction = downloader.getProgress();
+                    progress.accept("\u00a7e[CloudConfig] Downloading " + fileSizeMB + "... " + buildProgressBar(fraction));
+                }
+            });
+
             try (OutputStream outputStream = new FileOutputStream(tempZipFile.toFile())) {
-                driveService.files().get(fileId)
-                        .executeMediaAndDownloadTo(outputStream);
+                request.executeMediaAndDownloadTo(outputStream);
             }
 
             // Extract to config directory
-            unzipToDirectory(tempZipFile, configDir);
+            unzipToDirectory(tempZipFile, configDir, progress);
         } finally {
-            // Clean up temp file
             Files.deleteIfExists(tempZipFile);
         }
     }
@@ -156,7 +254,7 @@ public class ConfigSyncer {
         String fileId = getFileId();
 
         if (fileId == null) {
-            upload();
+            upload(null);
             return;
         }
 
@@ -165,9 +263,9 @@ public class ConfigSyncer {
         long localTime = Files.getLastModifiedTime(configDir).toMillis();
 
         if (driveTime > localTime) {
-            download();
+            download(null);
         } else if (localTime > driveTime) {
-            upload();
+            upload(null);
         }
     }
 }

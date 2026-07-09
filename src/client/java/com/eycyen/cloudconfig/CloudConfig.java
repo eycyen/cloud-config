@@ -47,7 +47,7 @@ public class CloudConfig implements ClientModInitializer {
         ClientLifecycleEvents.CLIENT_STOPPING.register(client -> {
             if (configSyncer != null) {
                 try {
-                    configSyncer.upload();
+                    configSyncer.upload(null);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -78,11 +78,22 @@ public class CloudConfig implements ClientModInitializer {
                                         return;
                                     }
                                 }
-                                context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§e[CloudConfig] Uploading to Drive...")));
-                                configSyncer.upload();
-                                context.getSource().getClient().execute(() ->
-                                    context.getSource().sendFeedback(Component.literal("§a[CloudConfig] Upload successful!"))
-                                );
+                                java.util.function.Consumer<String> progressBar = msg -> {
+                                    context.getSource().getClient().execute(() -> {
+                                        net.minecraft.client.player.LocalPlayer player = context.getSource().getClient().player;
+                                        if (player != null) {
+                                        player.sendSystemMessage(Component.literal(msg));
+                                        }
+                                    });
+                                };
+                                configSyncer.upload(progressBar);
+                                context.getSource().getClient().execute(() -> {
+                                    context.getSource().sendFeedback(Component.literal("§a[CloudConfig] Upload successful!"));
+                                    net.minecraft.client.player.LocalPlayer player = context.getSource().getClient().player;
+                                    if (player != null) {
+                                        player.sendSystemMessage(Component.literal("§a[CloudConfig] Upload complete!"));
+                                    }
+                                });
                             } catch (Throwable e) {
                                 final String errMsg = e.getMessage() != null ? e.getMessage() : e.toString();
                                 context.getSource().getClient().execute(() ->
@@ -116,11 +127,22 @@ public class CloudConfig implements ClientModInitializer {
                                         return;
                                     }
                                 }
-                                context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§e[CloudConfig] Downloading from Drive...")));
-                                configSyncer.download();
-                                context.getSource().getClient().execute(() ->
-                                    context.getSource().sendFeedback(Component.literal("§a[CloudConfig] Download successful!"))
-                                );
+                                java.util.function.Consumer<String> progressBar = msg -> {
+                                    context.getSource().getClient().execute(() -> {
+                                        net.minecraft.client.player.LocalPlayer player = context.getSource().getClient().player;
+                                        if (player != null) {
+                                        player.sendSystemMessage(Component.literal(msg));
+                                        }
+                                    });
+                                };
+                                configSyncer.download(progressBar);
+                                context.getSource().getClient().execute(() -> {
+                                    context.getSource().sendFeedback(Component.literal("§a[CloudConfig] Download successful!"));
+                                    net.minecraft.client.player.LocalPlayer player = context.getSource().getClient().player;
+                                    if (player != null) {
+                                        player.sendSystemMessage(Component.literal("§a[CloudConfig] Download complete!"));
+                                    }
+                                });
                             } catch (Throwable e) {
                                 final String errMsg = e.getMessage() != null ? e.getMessage() : e.toString();
                                 context.getSource().getClient().execute(() ->
