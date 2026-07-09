@@ -23,12 +23,14 @@ public class GoogleDriveManager {
 
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final List<String> SCOPES = Collections.singletonList(DriveScopes.DRIVE_FILE);
-    private static final String TOKENS_DIRECTORY_PATH = "config/cloudconfig/tokens";
     private static final String APPLICATION_NAME = "Cloud Config Syncer";
 
-    public Drive getDriveService(boolean allowBrowser) {
-        try {
-            final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
+    private File getTokenDirectory() {
+        return net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("cloudconfig/tokens").toFile();
+    }
+
+    public Drive getDriveService(boolean allowBrowser) throws Exception {
+        final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
             InputStream in = GoogleDriveManager.class.getResourceAsStream("/client_secret.json");
             if (in == null) {
@@ -38,7 +40,7 @@ public class GoogleDriveManager {
 
             GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
                     HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-                    .setDataStoreFactory(new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH)))
+                    .setDataStoreFactory(new FileDataStoreFactory(getTokenDirectory()))
                     .setAccessType("offline")
                     .build();
 
@@ -74,13 +76,8 @@ public class GoogleDriveManager {
                 }
             }
 
-            return new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
-                    .setApplicationName(APPLICATION_NAME)
-                    .build();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return null;
-        }
+        return new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
+                .setApplicationName(APPLICATION_NAME)
+                .build();
     }
 }

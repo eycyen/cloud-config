@@ -20,11 +20,15 @@ public class CloudConfig implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         CompletableFuture.runAsync(() -> {
-            GoogleDriveManager manager = new GoogleDriveManager();
-            driveService = manager.getDriveService(false);
+            try {
+                GoogleDriveManager manager = new GoogleDriveManager();
+                driveService = manager.getDriveService(false);
 
-            if (driveService != null) {
-                configSyncer = new ConfigSyncer(driveService);
+                if (driveService != null) {
+                    configSyncer = new ConfigSyncer(driveService);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
             }
         });
 
@@ -55,26 +59,27 @@ public class CloudConfig implements ClientModInitializer {
                 .then(LiteralArgumentBuilder.<FabricClientCommandSource>literal("upload")
                     .executes(context -> {
                         CompletableFuture.runAsync(() -> {
-                            if (configSyncer == null) {
-                                context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§e[CloudConfig] Authenticating with Google Drive...")));
-                                GoogleDriveManager manager = new GoogleDriveManager();
-                                driveService = manager.getDriveService(true);
-                                if (driveService != null) {
-                                    configSyncer = new ConfigSyncer(driveService);
-                                } else {
-                                    context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§c[CloudConfig] Authentication failed or cancelled.")));
-                                    return;
-                                }
-                            }
-                            context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§e[CloudConfig] Uploading to Drive...")));
                             try {
+                                if (configSyncer == null) {
+                                    context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§e[CloudConfig] Authenticating with Google Drive...")));
+                                    GoogleDriveManager manager = new GoogleDriveManager();
+                                    driveService = manager.getDriveService(true);
+                                    if (driveService != null) {
+                                        configSyncer = new ConfigSyncer(driveService);
+                                    } else {
+                                        context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§c[CloudConfig] Authentication failed or cancelled.")));
+                                        return;
+                                    }
+                                }
+                                context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§e[CloudConfig] Uploading to Drive...")));
                                 configSyncer.upload();
                                 context.getSource().getClient().execute(() ->
                                     context.getSource().sendFeedback(Component.literal("§a[CloudConfig] Upload successful!"))
                                 );
                             } catch (Exception e) {
+                                final String errMsg = e.getMessage() != null ? e.getMessage() : e.toString();
                                 context.getSource().getClient().execute(() ->
-                                    context.getSource().sendFeedback(Component.literal("§c[CloudConfig] Upload failed!"))
+                                    context.getSource().sendFeedback(Component.literal("§c[CloudConfig] Upload failed! Error: " + errMsg))
                                 );
                                 e.printStackTrace();
                             }
@@ -85,26 +90,27 @@ public class CloudConfig implements ClientModInitializer {
                 .then(LiteralArgumentBuilder.<FabricClientCommandSource>literal("download")
                     .executes(context -> {
                         CompletableFuture.runAsync(() -> {
-                            if (configSyncer == null) {
-                                context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§e[CloudConfig] Authenticating with Google Drive...")));
-                                GoogleDriveManager manager = new GoogleDriveManager();
-                                driveService = manager.getDriveService(true);
-                                if (driveService != null) {
-                                    configSyncer = new ConfigSyncer(driveService);
-                                } else {
-                                    context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§c[CloudConfig] Authentication failed or cancelled.")));
-                                    return;
-                                }
-                            }
-                            context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§e[CloudConfig] Downloading from Drive...")));
                             try {
+                                if (configSyncer == null) {
+                                    context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§e[CloudConfig] Authenticating with Google Drive...")));
+                                    GoogleDriveManager manager = new GoogleDriveManager();
+                                    driveService = manager.getDriveService(true);
+                                    if (driveService != null) {
+                                        configSyncer = new ConfigSyncer(driveService);
+                                    } else {
+                                        context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§c[CloudConfig] Authentication failed or cancelled.")));
+                                        return;
+                                    }
+                                }
+                                context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§e[CloudConfig] Downloading from Drive...")));
                                 configSyncer.download();
                                 context.getSource().getClient().execute(() ->
                                     context.getSource().sendFeedback(Component.literal("§a[CloudConfig] Download successful!"))
                                 );
                             } catch (Exception e) {
+                                final String errMsg = e.getMessage() != null ? e.getMessage() : e.toString();
                                 context.getSource().getClient().execute(() ->
-                                    context.getSource().sendFeedback(Component.literal("§c[CloudConfig] Download failed!"))
+                                    context.getSource().sendFeedback(Component.literal("§c[CloudConfig] Download failed! Error: " + errMsg))
                                 );
                                 e.printStackTrace();
                             }
