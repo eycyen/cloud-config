@@ -69,6 +69,8 @@ public class CloudConfig implements ClientModInitializer {
                                     e.printStackTrace();
                                 }
                             });
+                        } else {
+                            context.getSource().sendFeedback(Component.literal("§c[CloudConfig] Cannot upload: Service not initialized. Please check logs."));
                         }
                         return 1;
                     })
@@ -90,6 +92,8 @@ public class CloudConfig implements ClientModInitializer {
                                     e.printStackTrace();
                                 }
                             });
+                        } else {
+                            context.getSource().sendFeedback(Component.literal("§c[CloudConfig] Cannot download: Service not initialized. Please check logs."));
                         }
                         return 1;
                     })
