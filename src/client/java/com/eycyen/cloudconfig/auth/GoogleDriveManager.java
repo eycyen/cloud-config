@@ -29,25 +29,30 @@ public class GoogleDriveManager {
         return net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("cloudconfig/tokens").toFile();
     }
 
-    public Drive getDriveService(boolean allowBrowser, java.util.function.Consumer<String> browserUrlCallback) throws Exception {
+    public Drive getDriveService(boolean allowBrowser, java.util.function.Consumer<String> browserUrlCallback, java.util.function.Consumer<String> progressCallback) throws Exception {
+        if (progressCallback != null) progressCallback.accept("Initializing HTTP Transport...");
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
-            InputStream in = GoogleDriveManager.class.getResourceAsStream("/client_secret.json");
-            if (in == null) {
-                throw new RuntimeException("Resource not found: client_secret.json");
-            }
-            GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
+        if (progressCallback != null) progressCallback.accept("Loading client secrets...");
+        InputStream in = GoogleDriveManager.class.getResourceAsStream("/client_secret.json");
+        if (in == null) {
+            throw new RuntimeException("Resource not found: client_secret.json");
+        }
+        GoogleClientSecrets clientSecrets = GoogleClientSecrets.load(JSON_FACTORY, new InputStreamReader(in));
 
-            GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
-                    HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
-                    .setDataStoreFactory(new FileDataStoreFactory(getTokenDirectory()))
-                    .setAccessType("offline")
-                    .build();
+        if (progressCallback != null) progressCallback.accept("Building authorization flow...");
+        GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
+                HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
+                .setDataStoreFactory(new FileDataStoreFactory(getTokenDirectory()))
+                .setAccessType("offline")
+                .build();
 
-            Credential credential;
-            if (allowBrowser) {
-                LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
-                com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp.Browser browser = url -> {
+        Credential credential;
+        if (allowBrowser) {
+            if (progressCallback != null) progressCallback.accept("Starting local server receiver...");
+            LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
+            com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp.Browser browser = url -> {
+                if (progressCallback != null) progressCallback.accept("Browser lambda executed!");
                     if (browserUrlCallback != null) {
                         browserUrlCallback.accept(url);
                     }
@@ -75,14 +80,18 @@ public class GoogleDriveManager {
                         }
                     });
                 };
+                if (progressCallback != null) progressCallback.accept("Authorizing (waiting for browser)...");
                 credential = new AuthorizationCodeInstalledApp(flow, receiver, browser).authorize("user");
             } else {
+                if (progressCallback != null) progressCallback.accept("Loading existing credential...");
                 credential = flow.loadCredential("user");
                 if (credential == null) {
+                    if (progressCallback != null) progressCallback.accept("No credential found.");
                     return null;
                 }
             }
 
+        if (progressCallback != null) progressCallback.accept("Building Drive service...");
         return new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
                 .setApplicationName(APPLICATION_NAME)
                 .build();

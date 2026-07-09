@@ -22,7 +22,7 @@ public class CloudConfig implements ClientModInitializer {
         CompletableFuture.runAsync(() -> {
             try {
                 GoogleDriveManager manager = new GoogleDriveManager();
-                driveService = manager.getDriveService(false, null);
+                driveService = manager.getDriveService(false, null, null);
 
                 if (driveService != null) {
                     configSyncer = new ConfigSyncer(driveService);
@@ -68,6 +68,8 @@ public class CloudConfig implements ClientModInitializer {
                                             context.getSource().sendFeedback(Component.literal("§b[CloudConfig] Browser didn't open? Click this link to log in:"));
                                             context.getSource().sendFeedback(Component.literal("§n" + url));
                                         });
+                                    }, progress -> {
+                                        context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§7[CloudConfig] " + progress)));
                                     });
                                     if (driveService != null) {
                                         configSyncer = new ConfigSyncer(driveService);
@@ -104,6 +106,8 @@ public class CloudConfig implements ClientModInitializer {
                                             context.getSource().sendFeedback(Component.literal("§b[CloudConfig] Browser didn't open? Click this link to log in:"));
                                             context.getSource().sendFeedback(Component.literal("§n" + url));
                                         });
+                                    }, progress -> {
+                                        context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§7[CloudConfig] " + progress)));
                                     });
                                     if (driveService != null) {
                                         configSyncer = new ConfigSyncer(driveService);
