@@ -49,19 +49,29 @@ public class GoogleDriveManager {
                 LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
                 com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp.Browser browser = url -> {
                     net.minecraft.client.Minecraft.getInstance().execute(() -> {
+                        // 1. Give the user a clickable link in the chat as a bulletproof fallback
+                        net.minecraft.client.player.LocalPlayer player = net.minecraft.client.Minecraft.getInstance().player;
+                        if (player != null) {
+                            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§b[CloudConfig] Browser didn't open? Click this link to log in:"));
+                            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§n" + url));
+                        }
+
+                        // 2. Try OS-specific native commands first because Minecraft's Util swallows exceptions silently
                         try {
-                            net.minecraft.util.Util.getPlatform().openUri(new java.net.URI(url));
+                            String os = System.getProperty("os.name").toLowerCase();
+                            if (os.contains("win")) {
+                                Runtime.getRuntime().exec(new String[]{"rundll32", "url.dll,FileProtocolHandler", url});
+                            } else if (os.contains("mac")) {
+                                Runtime.getRuntime().exec(new String[]{"open", url});
+                            } else if (os.contains("nix") || os.contains("nux")) {
+                                Runtime.getRuntime().exec(new String[]{"xdg-open", url});
+                            } else {
+                                net.minecraft.util.Util.getPlatform().openUri(new java.net.URI(url));
+                            }
                         } catch (Exception e) {
-                            e.printStackTrace();
+                            // 3. Fallback to Minecraft's Util if the OS command fails
                             try {
-                                String os = System.getProperty("os.name").toLowerCase();
-                                if (os.contains("win")) {
-                                    Runtime.getRuntime().exec(new String[]{"rundll32", "url.dll,FileProtocolHandler", url});
-                                } else if (os.contains("mac")) {
-                                    Runtime.getRuntime().exec(new String[]{"open", url});
-                                } else if (os.contains("nix") || os.contains("nux")) {
-                                    Runtime.getRuntime().exec(new String[]{"xdg-open", url});
-                                }
+                                net.minecraft.util.Util.getPlatform().openUri(new java.net.URI(url));
                             } catch (Exception ex) {
                                 ex.printStackTrace();
                             }
