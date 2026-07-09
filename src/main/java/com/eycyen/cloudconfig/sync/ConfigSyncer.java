@@ -67,4 +67,23 @@ public class ConfigSyncer {
                     .executeMediaAndDownloadTo(outputStream);
         }
     }
+
+    public void syncOnStartup() throws Exception {
+        String fileId = getFileId();
+        
+        if (fileId == null) {
+            upload();
+            return;
+        }
+
+        File driveFile = driveService.files().get(fileId).setFields("modifiedTime").execute();
+        long driveTime = driveFile.getModifiedTime().getValue();
+        long localTime = localFile.lastModified();
+
+        if (driveTime > localTime) {
+            download();
+        } else if (localTime > driveTime) {
+            upload();
+        }
+    }
 }
