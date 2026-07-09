@@ -46,11 +46,25 @@ public class GoogleDriveManager {
             if (allowBrowser) {
                 LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
                 com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp.Browser browser = url -> {
-                    try {
-                        net.minecraft.util.Util.getPlatform().openUri(new java.net.URI(url));
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                    }
+                    net.minecraft.client.Minecraft.getInstance().execute(() -> {
+                        try {
+                            net.minecraft.util.Util.getPlatform().openUri(new java.net.URI(url));
+                        } catch (Exception e) {
+                            e.printStackTrace();
+                            try {
+                                String os = System.getProperty("os.name").toLowerCase();
+                                if (os.contains("win")) {
+                                    Runtime.getRuntime().exec(new String[]{"rundll32", "url.dll,FileProtocolHandler", url});
+                                } else if (os.contains("mac")) {
+                                    Runtime.getRuntime().exec(new String[]{"open", url});
+                                } else if (os.contains("nix") || os.contains("nux")) {
+                                    Runtime.getRuntime().exec(new String[]{"xdg-open", url});
+                                }
+                            } catch (Exception ex) {
+                                ex.printStackTrace();
+                            }
+                        }
+                    });
                 };
                 credential = new AuthorizationCodeInstalledApp(flow, receiver, browser).authorize("user");
             } else {
