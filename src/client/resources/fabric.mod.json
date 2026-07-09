@@ -15,11 +15,8 @@
 	"icon": "assets/cloud-config/icon.png",
 	"environment": "*",
 	"entrypoints": {
-		"main": [
-			"com.eycyen.cloudconfig.CloudConfig"
-		],
 		"client": [
-			"com.eycyen.cloudconfig.client.CloudConfigClient"
+			"com.eycyen.cloudconfig.CloudConfig"
 		]
 	},
 	"mixins": [
