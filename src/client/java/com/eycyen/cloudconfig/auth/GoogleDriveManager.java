@@ -43,7 +43,16 @@ public class GoogleDriveManager {
                     .build();
 
             LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
-            Credential credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
+            
+            com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp.Browser browser = url -> {
+                try {
+                    net.minecraft.util.Util.getPlatform().openUri(new java.net.URI(url));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            };
+
+            Credential credential = new AuthorizationCodeInstalledApp(flow, receiver, browser).authorize("user");
 
             return new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
                     .setApplicationName(APPLICATION_NAME)
