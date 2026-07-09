@@ -10,6 +10,7 @@ import com.google.api.client.http.javanet.NetHttpTransport;
 import com.google.api.client.json.JsonFactory;
 import com.google.api.client.json.gson.GsonFactory;
 import com.google.api.client.util.store.FileDataStoreFactory;
+import com.google.api.services.drive.Drive;
 import com.google.api.services.drive.DriveScopes;
 
 import java.io.File;
@@ -23,8 +24,9 @@ public class GoogleDriveManager {
     private static final JsonFactory JSON_FACTORY = GsonFactory.getDefaultInstance();
     private static final List<String> SCOPES = Collections.singletonList(DriveScopes.DRIVE_FILE);
     private static final String TOKENS_DIRECTORY_PATH = "config/cloudconfig/tokens";
+    private static final String APPLICATION_NAME = "Cloud Config Syncer";
 
-    public void getDriveService() {
+    public Drive getDriveService() {
         try {
             final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
@@ -37,16 +39,19 @@ public class GoogleDriveManager {
             GoogleAuthorizationCodeFlow flow = new GoogleAuthorizationCodeFlow.Builder(
                     HTTP_TRANSPORT, JSON_FACTORY, clientSecrets, SCOPES)
                     .setDataStoreFactory(new FileDataStoreFactory(new File(TOKENS_DIRECTORY_PATH)))
-                    .setAccessType("offline") 
+                    .setAccessType("offline")
                     .build();
 
             LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
             Credential credential = new AuthorizationCodeInstalledApp(flow, receiver).authorize("user");
 
-            System.out.println("Authorization successful! Tokens saved to: " + new File(TOKENS_DIRECTORY_PATH).getAbsolutePath());
+            return new Drive.Builder(HTTP_TRANSPORT, JSON_FACTORY, credential)
+                    .setApplicationName(APPLICATION_NAME)
+                    .build();
 
         } catch (Exception e) {
             e.printStackTrace();
+            return null;
         }
     }
 }
