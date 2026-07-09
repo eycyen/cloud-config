@@ -12,10 +12,12 @@ public class ConfigSyncer {
 
     private final Drive driveService;
     private final String fileName = "skyhanni.json";
-    private final java.io.File localFile = new java.io.File("config/" + fileName);
+    private final java.io.File localFile;
 
     public ConfigSyncer(Drive driveService) {
         this.driveService = driveService;
+        this.localFile = net.fabricmc.loader.api.FabricLoader.getInstance()
+                .getConfigDir().resolve(fileName).toFile();
     }
 
     public String getFileId() throws Exception {
@@ -33,7 +35,7 @@ public class ConfigSyncer {
 
     public void upload() throws Exception {
         if (!localFile.exists()) {
-            return;
+            throw new RuntimeException("Config file not found: " + localFile.getAbsolutePath());
         }
 
         String fileId = getFileId();
