@@ -41,3 +41,6 @@ replay_*.log
 
 # client_secret
 src/main/resources/assets/modid
+# Exclude Google OAuth Secrets
+src/client/resources/client_secret.json
+src/client/resources/assets/modid/client_secret.json
