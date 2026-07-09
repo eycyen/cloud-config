@@ -29,7 +29,7 @@ public class GoogleDriveManager {
         return net.fabricmc.loader.api.FabricLoader.getInstance().getConfigDir().resolve("cloudconfig/tokens").toFile();
     }
 
-    public Drive getDriveService(boolean allowBrowser) throws Exception {
+    public Drive getDriveService(boolean allowBrowser, java.util.function.Consumer<String> browserUrlCallback) throws Exception {
         final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
             InputStream in = GoogleDriveManager.class.getResourceAsStream("/client_secret.json");
@@ -48,13 +48,10 @@ public class GoogleDriveManager {
             if (allowBrowser) {
                 LocalServerReceiver receiver = new LocalServerReceiver.Builder().setPort(8888).build();
                 com.google.api.client.extensions.java6.auth.oauth2.AuthorizationCodeInstalledApp.Browser browser = url -> {
+                    if (browserUrlCallback != null) {
+                        browserUrlCallback.accept(url);
+                    }
                     net.minecraft.client.Minecraft.getInstance().execute(() -> {
-                        // 1. Give the user a clickable link in the chat as a bulletproof fallback
-                        net.minecraft.client.player.LocalPlayer player = net.minecraft.client.Minecraft.getInstance().player;
-                        if (player != null) {
-                            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§b[CloudConfig] Browser didn't open? Click this link to log in:"));
-                            player.sendSystemMessage(net.minecraft.network.chat.Component.literal("§n" + url));
-                        }
 
                         // 2. Try OS-specific native commands first because Minecraft's Util swallows exceptions silently
                         try {

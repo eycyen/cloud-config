@@ -22,7 +22,7 @@ public class CloudConfig implements ClientModInitializer {
         CompletableFuture.runAsync(() -> {
             try {
                 GoogleDriveManager manager = new GoogleDriveManager();
-                driveService = manager.getDriveService(false);
+                driveService = manager.getDriveService(false, null);
 
                 if (driveService != null) {
                     configSyncer = new ConfigSyncer(driveService);
@@ -63,7 +63,12 @@ public class CloudConfig implements ClientModInitializer {
                                 if (configSyncer == null) {
                                     context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§e[CloudConfig] Authenticating with Google Drive...")));
                                     GoogleDriveManager manager = new GoogleDriveManager();
-                                    driveService = manager.getDriveService(true);
+                                    driveService = manager.getDriveService(true, url -> {
+                                        context.getSource().getClient().execute(() -> {
+                                            context.getSource().sendFeedback(Component.literal("§b[CloudConfig] Browser didn't open? Click this link to log in:"));
+                                            context.getSource().sendFeedback(Component.literal("§n" + url));
+                                        });
+                                    });
                                     if (driveService != null) {
                                         configSyncer = new ConfigSyncer(driveService);
                                     } else {
@@ -94,7 +99,12 @@ public class CloudConfig implements ClientModInitializer {
                                 if (configSyncer == null) {
                                     context.getSource().getClient().execute(() -> context.getSource().sendFeedback(Component.literal("§e[CloudConfig] Authenticating with Google Drive...")));
                                     GoogleDriveManager manager = new GoogleDriveManager();
-                                    driveService = manager.getDriveService(true);
+                                    driveService = manager.getDriveService(true, url -> {
+                                        context.getSource().getClient().execute(() -> {
+                                            context.getSource().sendFeedback(Component.literal("§b[CloudConfig] Browser didn't open? Click this link to log in:"));
+                                            context.getSource().sendFeedback(Component.literal("§n" + url));
+                                        });
+                                    });
                                     if (driveService != null) {
                                         configSyncer = new ConfigSyncer(driveService);
                                     } else {
