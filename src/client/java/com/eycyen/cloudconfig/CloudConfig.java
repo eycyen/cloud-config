@@ -83,7 +83,7 @@ public class CloudConfig implements ClientModInitializer {
                                 context.getSource().getClient().execute(() ->
                                     context.getSource().sendFeedback(Component.literal("§a[CloudConfig] Upload successful!"))
                                 );
-                            } catch (Exception e) {
+                            } catch (Throwable e) {
                                 final String errMsg = e.getMessage() != null ? e.getMessage() : e.toString();
                                 context.getSource().getClient().execute(() ->
                                     context.getSource().sendFeedback(Component.literal("§c[CloudConfig] Upload failed! Error: " + errMsg))
@@ -121,7 +121,7 @@ public class CloudConfig implements ClientModInitializer {
                                 context.getSource().getClient().execute(() ->
                                     context.getSource().sendFeedback(Component.literal("§a[CloudConfig] Download successful!"))
                                 );
-                            } catch (Exception e) {
+                            } catch (Throwable e) {
                                 final String errMsg = e.getMessage() != null ? e.getMessage() : e.toString();
                                 context.getSource().getClient().execute(() ->
                                     context.getSource().sendFeedback(Component.literal("§c[CloudConfig] Download failed! Error: " + errMsg))
