@@ -3,11 +3,12 @@ package com.eycyen.cloudconfig;
 import com.eycyen.cloudconfig.auth.GoogleDriveManager;
 import com.eycyen.cloudconfig.sync.ConfigSyncer;
 import com.google.api.services.drive.Drive;
-import net.fabricmc.fabric.api.client.command.v2.ClientCommandManager;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.api.ClientModInitializer;
-import net.minecraft.text.Text;
+import net.minecraft.network.chat.Component;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -50,20 +51,20 @@ public class CloudConfig implements ClientModInitializer {
         });
 
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
-            dispatcher.register(ClientCommandManager.literal("cloudsync")
-                .then(ClientCommandManager.literal("upload")
+            dispatcher.register(LiteralArgumentBuilder.<FabricClientCommandSource>literal("cloudsync")
+                .then(LiteralArgumentBuilder.<FabricClientCommandSource>literal("upload")
                     .executes(context -> {
                         if (configSyncer != null) {
-                            context.getSource().sendFeedback(Text.literal("§e[CloudConfig] Uploading to Drive..."));
+                            context.getSource().sendFeedback(Component.literal("§e[CloudConfig] Uploading to Drive..."));
                             CompletableFuture.runAsync(() -> {
                                 try {
                                     configSyncer.upload();
                                     context.getSource().getClient().execute(() ->
-                                        context.getSource().sendFeedback(Text.literal("§a[CloudConfig] Upload successful!"))
+                                        context.getSource().sendFeedback(Component.literal("§a[CloudConfig] Upload successful!"))
                                     );
                                 } catch (Exception e) {
                                     context.getSource().getClient().execute(() ->
-                                        context.getSource().sendFeedback(Text.literal("§c[CloudConfig] Upload failed!"))
+                                        context.getSource().sendFeedback(Component.literal("§c[CloudConfig] Upload failed!"))
                                     );
                                     e.printStackTrace();
                                 }
@@ -72,19 +73,19 @@ public class CloudConfig implements ClientModInitializer {
                         return 1;
                     })
                 )
-                .then(ClientCommandManager.literal("download")
+                .then(LiteralArgumentBuilder.<FabricClientCommandSource>literal("download")
                     .executes(context -> {
                         if (configSyncer != null) {
-                            context.getSource().sendFeedback(Text.literal("§e[CloudConfig] Downloading from Drive..."));
+                            context.getSource().sendFeedback(Component.literal("§e[CloudConfig] Downloading from Drive..."));
                             CompletableFuture.runAsync(() -> {
                                 try {
                                     configSyncer.download();
                                     context.getSource().getClient().execute(() ->
-                                        context.getSource().sendFeedback(Text.literal("§a[CloudConfig] Download successful!"))
+                                        context.getSource().sendFeedback(Component.literal("§a[CloudConfig] Download successful!"))
                                     );
                                 } catch (Exception e) {
                                     context.getSource().getClient().execute(() ->
-                                        context.getSource().sendFeedback(Text.literal("§c[CloudConfig] Download failed!"))
+                                        context.getSource().sendFeedback(Component.literal("§c[CloudConfig] Download failed!"))
                                     );
                                     e.printStackTrace();
                                 }

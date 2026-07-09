@@ -29,14 +29,13 @@ loom {
 configurations {
 	shadowDependencies
     implementation.extendsFrom(shadowDependencies)
+    clientImplementation.extendsFrom(implementation)
 }
 
 dependencies {
 	// To change the versions see the gradle.properties file
 	minecraft "com.mojang:minecraft:${project.minecraft_version}"
 	implementation "net.fabricmc:fabric-loader:${project.loader_version}"
-
-	// Fabric API. This is technically optional, but you probably want it anyway.
 	implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_api_version}"
 
 	shadowDependencies 'com.google.api-client:google-api-client:2.2.0'
@@ -106,4 +105,16 @@ publishing {
 		// The repositories here will be used for publishing your artifact, not for
 		// retrieving dependencies.
 	}
+}
+
+tasks.register('printConfigs') {
+    doLast {
+        println configurations.names.join('\n')
+    }
+}
+
+tasks.register('printClientCompileClasspath') {
+    doLast {
+        println sourceSets.client.compileClasspath.files.join('\n')
+    }
 }
