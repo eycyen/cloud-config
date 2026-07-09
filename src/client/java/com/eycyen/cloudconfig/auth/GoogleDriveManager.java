@@ -26,7 +26,19 @@ public class GoogleDriveManager {
     private static final String TOKENS_DIRECTORY_PATH = "config/cloudconfig/tokens";
     private static final String APPLICATION_NAME = "Cloud Config Syncer";
 
-    public Drive getDriveService() {
+    public boolean hasToken() {
+        File tokenDir = new File(TOKENS_DIRECTORY_PATH);
+        if (tokenDir.exists() && tokenDir.isDirectory()) {
+            File[] files = tokenDir.listFiles();
+            return files != null && files.length > 0;
+        }
+        return false;
+    }
+
+    public Drive getDriveService(boolean allowBrowser) {
+        if (!allowBrowser && !hasToken()) {
+            return null;
+        }
         try {
             final NetHttpTransport HTTP_TRANSPORT = GoogleNetHttpTransport.newTrustedTransport();
 
