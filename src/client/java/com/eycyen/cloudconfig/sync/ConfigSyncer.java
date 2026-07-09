@@ -48,9 +48,13 @@ public class ConfigSyncer {
                     if (relativePath.contains(".cloudconfig-temp") || relativePath.startsWith("cloudconfig")) {
                         return FileVisitResult.CONTINUE;
                     }
-                    zos.putNextEntry(new ZipEntry(relativePath));
-                    Files.copy(file, zos);
-                    zos.closeEntry();
+                    try {
+                        zos.putNextEntry(new ZipEntry(relativePath));
+                        Files.copy(file, zos);
+                        zos.closeEntry();
+                    } catch (IOException e) {
+                        // Skip locked files (common on Windows when mods hold file locks)
+                    }
                     return FileVisitResult.CONTINUE;
                 }
 
